@@ -1,22 +1,26 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Bloom Aligned Learning Companion API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: documents
+    description: PDF document operations
+  - name: analysis
+    description: Content analysis operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,8 +28,249 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already in use
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout current user
+      responses:
+        "200":
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: List all uploaded documents for the current user
+      responses:
+        "200":
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+
+  /documents/{id}:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Get a single document with its analysis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Document with analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentWithAnalysis"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteDocument
+      tags: [documents]
+      summary: Delete a document and its analysis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /upload-pdf:
+    post:
+      operationId: uploadPdf
+      tags: [documents]
+      summary: Upload a PDF file and extract text
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PdfUploadForm"
+      responses:
+        "201":
+          description: PDF uploaded and text extracted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "400":
+          description: Invalid file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /analyze-content:
+    post:
+      operationId: analyzeContent
+      tags: [analysis]
+      summary: Analyze extracted text using Bloom's Taxonomy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyzeInput"
+      responses:
+        "200":
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisResult"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /history:
+    get:
+      operationId: getHistory
+      tags: [documents]
+      summary: Get user's learning history with stats
+      responses:
+        "200":
+          description: History and stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryResponse"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [documents]
+      summary: Get aggregate stats for the dashboard
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
 components:
   schemas:
+    PdfUploadForm:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+        language:
+          type: string
+          description: Preferred language code (e.g. en, es, fr)
+      required:
+        - file
+
     HealthStatus:
       type: object
       properties:
@@ -34,3 +279,302 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - email
+        - createdAt
+
+    RegisterInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+      required:
+        - name
+        - email
+        - password
+
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+      required:
+        - user
+        - token
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        filename:
+          type: string
+        originalName:
+          type: string
+        language:
+          type: ["string", "null"]
+        extractedText:
+          type: ["string", "null"]
+        pageCount:
+          type: ["integer", "null"]
+        status:
+          type: string
+          enum: [pending, extracted, analyzed]
+        createdAt:
+          type: string
+          format: date-time
+        analyzedAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - userId
+        - filename
+        - originalName
+        - status
+        - createdAt
+
+    BloomLevel:
+      type: object
+      properties:
+        level:
+          type: string
+          enum: [remember, understand, apply, analyze, evaluate, create]
+        concepts:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+      required:
+        - level
+        - concepts
+        - description
+
+    Flashcard:
+      type: object
+      properties:
+        id:
+          type: integer
+        front:
+          type: string
+        back:
+          type: string
+        bloomLevel:
+          type: string
+      required:
+        - id
+        - front
+        - back
+        - bloomLevel
+
+    QuizQuestion:
+      type: object
+      properties:
+        id:
+          type: integer
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        correctIndex:
+          type: integer
+        explanation:
+          type: string
+        bloomLevel:
+          type: string
+      required:
+        - id
+        - question
+        - options
+        - correctIndex
+        - explanation
+        - bloomLevel
+
+    AnalysisResult:
+      type: object
+      properties:
+        documentId:
+          type: integer
+        summary:
+          type: string
+        keyConcepts:
+          type: array
+          items:
+            type: string
+        bloomLevels:
+          type: array
+          items:
+            $ref: "#/components/schemas/BloomLevel"
+        flashcards:
+          type: array
+          items:
+            $ref: "#/components/schemas/Flashcard"
+        quiz:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuizQuestion"
+        hints:
+          type: array
+          items:
+            type: string
+        language:
+          type: string
+        analyzedAt:
+          type: string
+          format: date-time
+      required:
+        - documentId
+        - summary
+        - keyConcepts
+        - bloomLevels
+        - flashcards
+        - quiz
+        - hints
+        - language
+        - analyzedAt
+
+    DocumentWithAnalysis:
+      type: object
+      properties:
+        document:
+          $ref: "#/components/schemas/Document"
+        analysis:
+          $ref: "#/components/schemas/AnalysisResult"
+      required:
+        - document
+        - analysis
+
+    AnalyzeInput:
+      type: object
+      properties:
+        documentId:
+          type: integer
+        language:
+          type: string
+          description: Language code for output (default en)
+      required:
+        - documentId
+
+    HistoryItem:
+      type: object
+      properties:
+        document:
+          $ref: "#/components/schemas/Document"
+        conceptCount:
+          type: integer
+        flashcardCount:
+          type: integer
+        quizCount:
+          type: integer
+      required:
+        - document
+        - conceptCount
+        - flashcardCount
+        - quizCount
+
+    HistoryResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistoryItem"
+        totalDocuments:
+          type: integer
+        totalAnalyzed:
+          type: integer
+      required:
+        - items
+        - totalDocuments
+        - totalAnalyzed
+
+    DashboardStats:
+      type: object
+      properties:
+        totalDocuments:
+          type: integer
+        analyzedDocuments:
+          type: integer
+        totalFlashcards:
+          type: integer
+        totalQuestions:
+          type: integer
+        recentDocuments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Document"
+        bloomLevelDistribution:
+          type: array
+          items:
+            type: object
+            properties:
+              level:
+                type: string
+              count:
+                type: integer
+            required:
+              - level
+              - count
+      required:
+        - totalDocuments
+        - analyzedDocuments
+        - totalFlashcards
+        - totalQuestions
+        - recentDocuments
+        - bloomLevelDistribution
